@@ -16,13 +16,16 @@ const OVERLAP_STOPWORDS = new Set([
 
 /**
  * Mirror of phrase_query in core/fulltext.py: one straight-quoted phrase so
- * BookReader finds the passage, not each word. Stray/curly quotes break FTS.
+ * BookReader finds the passage, not each word. Double-quoted queries are
+ * preserved after curly quote normalization.
  *
  * @param {string} query
  * @returns {string} '' when nothing is left
  */
 export function phraseQuery(query) {
-    const words = (query || '').replace(/[\u201c\u201d\u201e\u201f]/g, '"').replace(/"/g, ' ').split(/\s+/).filter(Boolean);
+    const normalizedQuery = (query || '').replace(/[\u201c\u201d\u201e\u201f]/g, '"');
+    if (/"/.test(normalizedQuery)) return normalizedQuery;
+    const words = normalizedQuery.split(/\s+/).filter(Boolean);
     return words.length ? `"${words.join(' ')}"` : '';
 }
 

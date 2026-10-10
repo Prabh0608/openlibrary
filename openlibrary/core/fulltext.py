@@ -202,11 +202,26 @@ def filter_readable(hits: list[dict], availability: dict) -> list[dict]:
 
 # FTS treats curly quotes as ordinary characters, not phrase delimiters.
 _CURLY_DOUBLE_QUOTES = str.maketrans({"“": '"', "”": '"', "„": '"', "‟": '"'})
+_DOUBLE_QUOTE_PATTERN = re.compile(r'"')
+
+
+def has_double_quotes(q: str | None) -> bool:
+    """Whether `q` contains a straight or curly double quote.
+
+    Curly double quotes are normalized before matching. Single quotes, including
+    curly single quotes, are not treated as phrase delimiters.
+
+    >>> has_double_quotes('"United Nations" "world hunger"')
+    True
+    >>> has_double_quotes("‘United Nations’")
+    False
+    """
+    return bool(_DOUBLE_QUOTE_PATTERN.search((q or "").translate(_CURLY_DOUBLE_QUOTES)))
 
 
 def phrase_query(q: str | None) -> str:
-    """Quote the whole query as one phrase: bare words match anywhere (1.5M hits vs 14K).
-    FTS can't escape quotes and stray ones break the phrase, so typed quotes are dropped.
+    """Quote an unquoted query as one phrase: bare words match anywhere (1.5M hits vs 14K).
+    Queries with double quotes are left intact after curly quotes are normalized.
 
     >>> phrase_query("it was the best of times")
     '"it was the best of times"'
@@ -215,15 +230,20 @@ def phrase_query(q: str | None) -> str:
     >>> phrase_query("“it was the best of times”")
     '"it was the best of times"'
     >>> phrase_query('he said "hello there" softly')
-    '"he said hello there softly"'
+    'he said "hello there" softly'
     >>> phrase_query('"it was the best of times')
-    '"it was the best of times"'
+    '"it was the best of times'
+    >>> phrase_query('"United Nations" "world hunger"')
+    '"United Nations" "world hunger"'
     >>> print(phrase_query("it's a truth\\n  universally acknowledged"))
     "it's a truth universally acknowledged"
-    >>> phrase_query('  "  "  ')
-    ''
+    >>> phrase_query("‘United Nations’")
+    '"‘United Nations’"'
     """
-    words = (q or "").translate(_CURLY_DOUBLE_QUOTES).replace('"', " ").split()
+    normalized_q = (q or "").translate(_CURLY_DOUBLE_QUOTES)
+    if has_double_quotes(normalized_q):
+        return normalized_q
+    words = normalized_q.split()
     return f'"{" ".join(words)}"' if words else ""
 
 

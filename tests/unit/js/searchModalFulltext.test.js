@@ -242,27 +242,25 @@ describe('phraseQuery', () => {
         expect(phraseQuery('whale')).toBe('"whale"');
     });
 
-    test('leaves a well-formed phrase unchanged', () => {
+    test('preserves double-quoted queries', () => {
         expect(phraseQuery('"it was the best of times"')).toBe('"it was the best of times"');
+        expect(phraseQuery('"United Nations" "world hunger"')).toBe('"United Nations" "world hunger"');
+        expect(phraseQuery('he said "hello there" softly')).toBe('he said "hello there" softly');
     });
 
-    test('normalizes curly quotes, wrapping or inner', () => {
+    test('normalizes curly double quotes before preserving the query', () => {
         expect(phraseQuery('\u201cit was the best of times\u201d')).toBe('"it was the best of times"');
-        expect(phraseQuery('he said \u201chello there\u201d softly')).toBe('"he said hello there softly"');
+        expect(phraseQuery('he said \u201chello there\u201d softly')).toBe('he said "hello there" softly');
     });
 
-    test('repairs unbalanced quotes', () => {
-        expect(phraseQuery('"it was the best of times')).toBe('"it was the best of times"');
-        expect(phraseQuery('hello there" softly')).toBe('"hello there softly"');
-    });
-
-    test('inner quotes are removed, not escaped', () => {
-        expect(phraseQuery('he said "hello there" softly')).toBe('"he said hello there softly"');
+    test('preserves unbalanced double quotes', () => {
+        expect(phraseQuery('"it was the best of times')).toBe('"it was the best of times');
+        expect(phraseQuery('hello there" softly')).toBe('hello there" softly');
     });
 
     test('whitespace collapses and an emptied query yields nothing', () => {
         expect(phraseQuery('  a\n  b  ')).toBe('"a b"');
-        expect(phraseQuery('  "  "  ')).toBe('');
+        expect(phraseQuery('  "  "  ')).toBe('  "  "  ');
         expect(phraseQuery('')).toBe('');
     });
 });

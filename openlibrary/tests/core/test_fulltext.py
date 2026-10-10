@@ -108,20 +108,15 @@ class Test_phrase_query:
             # Curly quotes from a pasted passage, wrapping or inner.
             ("“it was the best of times”", '"it was the best of times"'),
             ("„it was the best of times‟", '"it was the best of times"'),
-            ("he said “hello there” softly", '"he said hello there softly"'),
-            # Unbalanced quotes, which the backend would silently ignore.
-            ('"it was the best of times', '"it was the best of times"'),
-            ('it was the best of times"', '"it was the best of times"'),
-            ('hello there" softly', '"hello there softly"'),
-            # Inner quotes (dialogue) can't be escaped, only removed.
-            ('he said "hello there" softly', '"he said hello there softly"'),
-            ('"he said "hello there" softly"', '"he said hello there softly"'),
-            ('"he said \\"hello there\\" softly"', '"he said \\ hello there\\ softly"'),
-            # Multiple phrases collapse into one — deliberate.
-            ('"best of times" "worst of times"', '"best of times worst of times"'),
-            # A quote with no space around it still splits into words.
-            ('12"record', '"12 record"'),
-            ('a""b', '"a b"'),
+            ("he said “hello there” softly", 'he said "hello there" softly'),
+            ('"United Nations" "world hunger"', '"United Nations" "world hunger"'),
+            # Any double quote, including an unbalanced one, preserves the query.
+            ('"it was the best of times', '"it was the best of times'),
+            ('it was the best of times"', 'it was the best of times"'),
+            ('hello there" softly', 'hello there" softly'),
+            ('"he said "hello there" softly"', '"he said "hello there" softly"'),
+            ('12"record', '12"record'),
+            ('a""b', 'a""b'),
         ],
     )
     def test_wraps_in_straight_quotes(self, raw, expected):
@@ -150,15 +145,27 @@ class Test_phrase_query:
     @pytest.mark.parametrize(
         ("raw", "expected"),
         [
+            ('"United Nations" "world hunger"', True),
+            ("“United Nations”", True),
+            ("‘United Nations’", False),
+            ("'United Nations'", False),
+        ],
+    )
+    def test_has_double_quotes(self, raw, expected):
+        assert fulltext.has_double_quotes(raw) is expected
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
             ("  it was  the best ", '"it was the best"'),
             ("it was\nthe best\tof\r\ntimes", '"it was the best of times"'),
-            ('" it was the best of times "', '"it was the best of times"'),
+            ('" it was the best of times "', '" it was the best of times "'),
         ],
     )
     def test_collapses_whitespace(self, raw, expected):
         assert fulltext.phrase_query(raw) == expected
 
-    @pytest.mark.parametrize("raw", [None, "", "   ", '"', '""', '"  "', "“”", " \n\t "])
+    @pytest.mark.parametrize("raw", [None, "", "   ", " \n\t "])
     def test_nothing_to_search_is_empty(self, raw):
         assert fulltext.phrase_query(raw) == ""
 
@@ -167,7 +174,6 @@ class Test_phrase_query:
         [
             "it was the best of times",
             '"it was the best of times"',
-            'he said "hello there" softly',
             "“curly”",
             "  spaced   out  ",
         ],
